@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Sign in · Host Monitor{% endblock %}
+{% block main %}
+  <div class="login-wrap">
+    <section class="login-card" aria-labelledby="sign-in-title">
+      <h1 id="sign-in-title">Sign in</h1>
+      <p class="lede">Admin account for this machine.</p>
+      {% if error %}
+      <p class="error" role="alert">{{ error }}</p>
+      {% endif %}
+      <form method="post" class="stack" action="{{ url_for('login') }}">
+        <label>
+          Username
+          <input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">Sign in</button>
+      </form>
+    </section>
+  </div>
+{% endblock %}
