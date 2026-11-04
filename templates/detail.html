@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ server.name }} · Host Monitor{% endblock %}
+{% block main %}
+  <h1>{{ server.name }}</h1>
+  <p class="lede">{% if server.username %}{{ server.username }}@{% endif %}{{ server.address }}{% if server.port != 22 %}:{{ server.port }}{% endif %} · read only</p>
+  <form class="inline-form" method="post" action="{{ url_for('server_remove', server_id=server.id) }}">
+    <button class="ghost" type="submit">Remove</button>
+  </form>
+  <section class="monitor-block" aria-label="{{ server.name }}" data-refresh="5000" data-url="{{ url_for('server_metrics', server_id=server.id) }}">
+    <p class="hint refresh-note">Updates every 5 seconds. History is kept in memory for at most 60 minutes.</p>
+    <div class="metrics-slot">
+      {% include "_metrics.html" %}
+    </div>
+  </section>
+  <noscript><p class="hint">Automatic refresh is off. Reload the page for new readings.</p></noscript>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

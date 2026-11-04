@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Add server · Host Monitor{% endblock %}
+{% block main %}
+  <h1>Add server</h1>
+  <p class="lede">Save this machine, or a remote host to read over SSH.</p>
+  {% if error %}
+  <p class="error" role="alert">{{ error }}</p>
+  {% endif %}
+  <form method="post" class="stack form-card" action="{{ url_for('server_new') }}">
+    <label>
+      Server name
+      <input name="name" value="{{ name }}" maxlength="80" autocomplete="off" required>
+    </label>
+    <label>
+      SSH host
+      <input name="address" value="{{ address }}" placeholder="{{ hostname }}" autocomplete="off">
+    </label>
+    <label>
+      Port
+      <input name="port" value="{{ port }}" placeholder="22" inputmode="numeric" autocomplete="off">
+    </label>
+    <label>
+      SSH username
+      <input name="username" value="{{ username }}" maxlength="32" autocomplete="off">
+    </label>
+    <label>
+      SSH password
+      <input name="password" type="password" autocomplete="new-password">
+    </label>
+    <p class="hint">Leave the host blank for this machine. A remote host needs a username and password. The password is saved with the server so the monitor can reconnect. This form does not run a command you type.</p>
+    <button type="submit">Save</button>
+  </form>
+{% endblock %}

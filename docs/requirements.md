@@ -42,7 +42,7 @@ The demo has one shared account. It does not separate teams or roles.
 - **Read-only host.** The app may read `/proc`, sysfs, and process tables. It must not run configuration changes, install packages, or send commands to the host.
 - **Inventory is the only write path.** Signed-in users may add or remove server records in the app. That does not change the host.
 - **One server.** The inventory holds the local machine only. A second record, or any host that is not this machine, is rejected with a short message.
-- **History is in memory.** Samples are kept for 30 minutes and discarded when the process stops.
+- **History is in memory.** Samples are kept for 60 minutes and discarded when the process stops.
 
 ## 7. Features
 
@@ -85,14 +85,14 @@ Behavior:
 
 ### 7.4 Metrics
 
-The detail page refreshes live values about every 5 seconds. Each refresh appends one sample. The app keeps 30 minutes of samples in memory (about 360 points) and uses them for charts.
+The detail page refreshes live values about every 5 seconds. Each refresh appends one sample. The app keeps 60 minutes of samples in memory (about 720 points) and uses them for charts.
 
 | Area | What the page shows |
 | --- | --- |
 | Host | Hostname, uptime, load average (1, 5, 15 minutes) |
-| CPU | Current total percent and a 30-minute chart |
-| Memory | Used, total, percent, and a 30-minute chart |
-| Network | Current receive and transmit rate (bytes per second) and a 30-minute chart of both |
+| CPU | Current total percent and a 60-minute chart |
+| Memory | Used, total, percent, and a 60-minute chart |
+| Network | Current receive and transmit rate (bytes per second) and a 60-minute chart of both |
 | Disk | One row per mounted filesystem: mount point, used, total, percent |
 | Ports | Listening ports and active connections: protocol, local address, port, state, and owning process when available |
 | Processes | Top 10 by CPU and top 10 by memory: pid, name, CPU percent, memory percent |
@@ -132,6 +132,6 @@ Suggested environment values:
 - `admin` signs in only when the password matches the configured hash.
 - The UI can add and remove one local server and rejects any other host.
 - With the server added, the detail page shows every metric in the table in section 7.4.
-- Charts cover roughly the last 30 minutes and clear after a process restart.
+- Charts cover roughly the last 60 minutes and clear after a process restart.
 - No screen offers a way to change files, services, processes, or network settings on the host.
 - The app runs locally with Flask and is usable in the browser on this machine.

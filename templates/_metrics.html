@@ -1,0 +1,239 @@
+<section class="metrics" aria-label="Metrics">
+  {% if metrics.error %}
+  <p class="error" role="alert">{{ metrics.error }}</p>
+  {% endif %}
+  <div class="cards">
+    <article class="card">
+      <h2>Hostname</h2>
+      <p class="metric">{{ metrics.host.hostname or "—" }}</p>
+    </article>
+    <article class="card">
+      <h2>Uptime</h2>
+      <p class="metric">{{ metrics.host.uptime or "—" }}</p>
+    </article>
+    <article class="card">
+      <h2>Load average</h2>
+      <p class="metric">{{ metrics.host.load or "—" }}</p>
+      <p class="hint">1, 5, and 15 minutes</p>
+    </article>
+  </div>
+  {% if metrics.host.error %}
+  <p class="error">{{ metrics.host.error }}</p>
+  {% endif %}
+
+  <div class="cards cards-2">
+    <article class="card">
+      <h2>CPU</h2>
+      {% if metrics.cpu.error %}
+      <p class="error">{{ metrics.cpu.error }}</p>
+      {% else %}
+      <p class="metric">{{ metrics.cpu.percent_label }}</p>
+      <p class="hint">Current total</p>
+      {% endif %}
+    </article>
+    <article class="card">
+      <h2>Memory</h2>
+      {% if metrics.memory.error %}
+      <p class="error">{{ metrics.memory.error }}</p>
+      {% else %}
+      <p class="metric">{{ metrics.memory.percent_label }}</p>
+      <p class="hint">{{ metrics.memory.used_label }} of {{ metrics.memory.total_label }}</p>
+      {% endif %}
+    </article>
+  </div>
+
+  <div class="chart-grid">
+    <article class="card">
+      <h2>CPU history</h2>
+      {{ cpu_chart(metrics.history.cpu) }}
+    </article>
+    <article class="card">
+      <h2>Memory history</h2>
+      {{ memory_chart(metrics.history.memory) }}
+    </article>
+    <article class="card chart-wide">
+      <h2>Network</h2>
+      {% if metrics.network.error %}
+      <p class="error">{{ metrics.network.error }}</p>
+      {% else %}
+      <p class="metric-row">
+        <span>In {{ metrics.network.rx_rate_label }}</span>
+        <span>Out {{ metrics.network.tx_rate_label }}</span>
+      </p>
+      <p class="hint">Since boot: {{ metrics.network.rx_total_label }} received, {{ metrics.network.tx_total_label }} sent</p>
+      <p class="legend"><span class="swatch rx"></span> Received <span class="swatch tx"></span> Sent</p>
+      {{ network_chart(metrics.history.net_rx, metrics.history.net_tx) }}
+      {% endif %}
+    </article>
+  </div>
+
+  <section class="card block" aria-label="Disk">
+    <h2>Disk</h2>
+    {% if metrics.disk.error %}
+    <p class="error">{{ metrics.disk.error }}</p>
+    {% elif not metrics.disk.rows %}
+    <p class="empty">No local mounts found.</p>
+    {% else %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Mount</th>
+            <th scope="col">Used</th>
+            <th scope="col">Total</th>
+            <th scope="col">Used %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in metrics.disk.rows %}
+          <tr>
+            <td>{{ row.mount }}</td>
+            <td>{{ row.used_label }}</td>
+            <td>{{ row.total_label }}</td>
+            <td>{{ row.percent_label }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  {% if metrics.ports.error %}
+  <section class="card block" aria-label="Ports">
+    <h2>Ports</h2>
+    <p class="error">{{ metrics.ports.error }}</p>
+  </section>
+  {% else %}
+  <div class="split">
+    <section class="card" aria-label="Listening ports">
+      <h2>Listening ports</h2>
+      {% if not metrics.ports.listening %}
+      <p class="empty">No listening TCP ports.</p>
+      {% else %}
+      {% if metrics.ports.listening_count > metrics.ports.listening|length %}
+      <p class="hint">Showing {{ metrics.ports.listening|length }} of {{ metrics.ports.listening_count }}.</p>
+      {% endif %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Local</th>
+              <th scope="col">Remote</th>
+              <th scope="col">State</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in metrics.ports.listening %}
+            <tr>
+              <td>{{ row.local }}</td>
+              <td>{{ row.remote }}</td>
+              <td>{{ row.state }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+    <section class="card" aria-label="Active connections">
+      <h2>Active connections</h2>
+      {% if not metrics.ports.active %}
+      <p class="empty">No active TCP connections.</p>
+      {% else %}
+      {% if metrics.ports.active_count > metrics.ports.active|length %}
+      <p class="hint">Showing {{ metrics.ports.active|length }} of {{ metrics.ports.active_count }}.</p>
+      {% endif %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Local</th>
+              <th scope="col">Remote</th>
+              <th scope="col">State</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in metrics.ports.active %}
+            <tr>
+              <td>{{ row.local }}</td>
+              <td>{{ row.remote }}</td>
+              <td>{{ row.state }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+  {% endif %}
+
+  {% if metrics.processes.error %}
+  <section class="card block" aria-label="Processes">
+    <h2>Processes</h2>
+    <p class="error">{{ metrics.processes.error }}</p>
+  </section>
+  {% else %}
+  <div class="split">
+    <section class="card" aria-label="Top processes by CPU">
+      <h2>Top processes by CPU</h2>
+      {% if not metrics.processes.by_cpu %}
+      <p class="empty">No processes to show.</p>
+      {% else %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">PID</th>
+              <th scope="col">Name</th>
+              <th scope="col">CPU</th>
+              <th scope="col">Memory</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in metrics.processes.by_cpu %}
+            <tr>
+              <td>{{ row.pid }}</td>
+              <td class="name">{{ row.name }}</td>
+              <td>{{ row.cpu_label }}</td>
+              <td>{{ row.memory_label }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+    <section class="card" aria-label="Top processes by memory">
+      <h2>Top processes by memory</h2>
+      {% if not metrics.processes.by_memory %}
+      <p class="empty">No processes to show.</p>
+      {% else %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">PID</th>
+              <th scope="col">Name</th>
+              <th scope="col">CPU</th>
+              <th scope="col">Memory</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in metrics.processes.by_memory %}
+            <tr>
+              <td>{{ row.pid }}</td>
+              <td class="name">{{ row.name }}</td>
+              <td>{{ row.cpu_label }}</td>
+              <td>{{ row.memory_label }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+  {% endif %}
+</section>
