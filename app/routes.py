@@ -1,4 +1,4 @@
-"""Pages. Metrics are view-only. Writes are the server list and the user list."""
+"""Pages. Metrics are view-only. The server list is the write path."""
 
 import os
 import socket
@@ -6,14 +6,15 @@ import socket
 from flask import abort, current_app, jsonify, redirect, render_template, request, session, url_for
 
 from app.auth import verify_login
-from app.servers import ServerStoreError, add_server, load_servers, remove_server
-from app.users import (
-    UserStoreError,
-    add_user,
-    password_matches,
-    public_usernames,
-    remove_user,
+from app.servers import (
+    ServerStoreError,
+    add_server,
+    is_local_address,
+    load_servers,
+    remove_server,
+    server_record,
 )
+from app.users import UserStoreError, password_matches, public_usernames
 
 _OPEN = {"login", "static"}
 
@@ -75,43 +76,28 @@ def register_routes(app):
         hostname = _hostname()
         name = ""
         address = ""
+        port = ""
+        username = ""
         error = None
         if request.method == "POST":
-            # host, port, username, and command are ignored so this cannot open SSH.
+            # A posted command is ignored. The SSH check uses a fixed read-only script.
             name = request.form.get("name", "")
             address = request.form.get("address", "")
-            result = add_server(_path(), name, address, hostname)
+            port = request.form.get("port", "")
+            username = request.form.get("username", "")
+            result = add_server(
+                _path(),
+                name,
+                address,
+                hostname,
+                port=port,
+                username=username,
+                password=request.form.get("password", ""),
+            )
             if result["ok"]:
                 return redirect(url_for("home"))
             error = result["message"]
-        return _render_server_form(hostname, name, address, error)
-
-    @app.post("/users")
-    def user_add():
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
-        result = add_user(_users_path(), username, password)
-        if result["ok"]:
-            return redirect(url_for("server_new"))
-        return _render_server_form(
-            _hostname(),
-            "",
-            "",
-            None,
-            user_error=result["message"],
-            user_name=username if isinstance(username, str) else "",
-        )
-
-    @app.post("/users/<username>/remove")
-    def user_remove(username):
-        try:
-            remove_user(_users_path(), username)
-        except UserStoreError:
-            pass
-        if session.get("user") == username:
-            session.clear()
-            return redirect(url_for("login"))
-        return redirect(url_for("server_new"))
+        return _render_server_form(hostname, name, address, port, username, error)
 
     @app.post("/servers/<server_id>/remove")
     def server_remove(server_id):
@@ -123,26 +109,29 @@ def register_routes(app):
 
     @app.get("/servers/<server_id>")
     def server_detail(server_id):
-        try:
-            servers = load_servers(_path())
-        except ServerStoreError:
-            abort(404)
-        server = next((item for item in servers if item["id"] == server_id), None)
+        server = _find_server(server_id)
         if server is None:
             abort(404)
         return render_template(
             "detail.html",
-            server=server,
-            metrics=current_app.monitor.snapshot(),
+            server=_public_server(server),
+            metrics=_metrics_for(server),
         )
 
     @app.get("/api/metrics")
     def api_metrics():
-        return jsonify(current_app.monitor.snapshot())
+        return jsonify(_metrics_for(None))
 
     @app.get("/metrics/fragment")
     def metrics_fragment():
-        return render_template("_metrics.html", metrics=current_app.monitor.snapshot())
+        return render_template("_metrics.html", metrics=_metrics_for(None))
+
+    @app.get("/servers/<server_id>/metrics")
+    def server_metrics(server_id):
+        server = _find_server(server_id)
+        if server is None:
+            abort(404)
+        return render_template("_metrics.html", metrics=_metrics_for(server))
 
     @app.errorhandler(404)
     def not_found(_err):
@@ -169,26 +158,44 @@ def _signed_in():
         return False
 
 
-def _render_server_form(hostname, name, address, error, user_error=None, user_name=""):
-    try:
-        names = public_usernames(_users_path())
-        users_error = None
-    except UserStoreError:
-        names = []
-        users_error = "User list unavailable."
-    users = [{"username": "admin", "builtin": True}]
-    users.extend({"username": item, "builtin": False} for item in names)
+def _render_server_form(hostname, name, address, port, username, error):
     return render_template(
         "server_form.html",
         error=error,
-        name=name,
-        address=address,
+        name=name if isinstance(name, str) else "",
+        address=address if isinstance(address, str) else "",
+        port=port if isinstance(port, str) else "",
+        username=username if isinstance(username, str) else "",
         hostname=hostname or "this machine",
-        users=users,
-        users_error=users_error,
-        user_error=user_error,
-        user_name=user_name,
     )
+
+
+def _find_server(server_id):
+    try:
+        return server_record(_path(), server_id)
+    except ServerStoreError:
+        return None
+
+
+def _metrics_for(server):
+    if server is None or is_local_address(server.get("address"), _hostname()):
+        snapshot = current_app.monitor.snapshot()
+    else:
+        snapshot = current_app.remote.snapshot(server)
+    if isinstance(snapshot, dict) and "error" not in snapshot:
+        snapshot = dict(snapshot)
+        snapshot["error"] = None
+    return snapshot
+
+
+def _public_server(server):
+    return {
+        "id": server["id"],
+        "name": server["name"],
+        "address": server["address"],
+        "port": server["port"],
+        "username": server["username"],
+    }
 
 
 def _path():

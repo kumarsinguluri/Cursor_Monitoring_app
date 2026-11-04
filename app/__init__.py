@@ -30,9 +30,11 @@ def create_app(servers_path=None, users_path=None, start_collector=True, load_en
 
     from app.charts import cpu_chart, memory_chart, network_chart
     from app.collect import Monitor
+    from app.remote import RemoteMonitor
     from app.routes import register_routes
 
     app.monitor = Monitor()
+    app.remote = RemoteMonitor()
     app.jinja_env.globals.update(
         cpu_chart=cpu_chart,
         memory_chart=memory_chart,

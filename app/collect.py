@@ -49,6 +49,7 @@ def empty_snapshot():
         "ports": ports_error(),
         "processes": processes_error(),
         "history": {"cpu": [], "memory": [], "net_rx": [], "net_tx": []},
+        "error": None,
     }
 
 
@@ -128,6 +129,7 @@ class Monitor:
                 "net_rx": self.history.values("net_rx"),
                 "net_tx": self.history.values("net_tx"),
             },
+            "error": None,
         }
 
     def _host(self):

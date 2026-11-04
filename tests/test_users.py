@@ -64,24 +64,19 @@ class UserPageTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def test_page_lists_admin_and_a_new_user(self):
+    def test_add_server_form_asks_for_ssh_and_hides_the_user_list(self):
         page = self.client.get("/servers/new")
-        self.assertIn(b"All users", page.data)
-        self.assertIn(b"admin", page.data)
-        self.assertIn(b"Add user", page.data)
+        self.assertIn(b"SSH host", page.data)
+        self.assertIn(b"SSH username", page.data)
+        self.assertIn(b"SSH password", page.data)
+        self.assertNotIn(b"All users", page.data)
+        self.assertNotIn(b"Add user", page.data)
 
-        created = self.client.post(
-            "/users",
-            data={"username": "ada", "password": "long-password"},
-            follow_redirects=True,
-        )
-        self.assertEqual(created.status_code, 200)
-        self.assertIn(b"ada", created.data)
-        self.assertNotIn(b"long-password", created.data)
+    def test_added_account_can_sign_in(self):
+        add_user(self.users, "ada", "long-password")
         saved = json.loads(Path(self.users).read_text(encoding="utf-8"))
         self.assertEqual(saved[0]["username"], "ada")
         self.assertNotIn("long-password", saved[0]["password_hash"])
-
         self.client.post("/logout")
         signed_in = login(self.client, password="long-password", username="ada")
         self.assertEqual(signed_in.status_code, 302)

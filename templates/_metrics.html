@@ -1,4 +1,7 @@
 <section class="metrics" aria-label="Metrics">
+  {% if metrics.error %}
+  <p class="error" role="alert">{{ metrics.error }}</p>
+  {% endif %}
   <div class="cards">
     <article class="card">
       <h2>Hostname</h2>

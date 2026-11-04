@@ -12,13 +12,13 @@
     {% if servers_error %}
     <p class="error">{{ servers_error }}</p>
     {% elif not servers %}
-    <p class="empty">No servers yet. Add this machine to the list.</p>
+    <p class="empty">No servers yet. Add this machine or a remote host.</p>
     {% else %}
     <ul class="server-list">
       {% for server in servers %}
       <li>
         <a href="{{ url_for('server_detail', server_id=server.id) }}">{{ server.name }}</a>
-        <span class="muted">{{ server.address }}</span>
+        <span class="muted">{% if server.username %}{{ server.username }}@{% endif %}{{ server.address }}{% if server.port != 22 %}:{{ server.port }}{% endif %}</span>
         <form method="post" action="{{ url_for('server_remove', server_id=server.id) }}">
           <button class="ghost" type="submit">Remove</button>
         </form>
@@ -29,7 +29,7 @@
   </section>
 
   <p class="hint" id="refresh-note">Updates every 5 seconds. History is kept in memory for at most 60 minutes.</p>
-  <div id="metrics" data-refresh="5000">
+  <div id="metrics" data-refresh="5000" data-url="{{ url_for('metrics_fragment') }}">
     {% include "_metrics.html" %}
   </div>
   <noscript><p class="hint">Automatic refresh is off. Reload the page for new readings.</p></noscript>

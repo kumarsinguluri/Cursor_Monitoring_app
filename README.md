@@ -1,6 +1,6 @@
 # Host Monitor
 
-Local demo. It monitors this machine only and is read-only toward the host.
+Local demo. The dashboard shows this machine. A saved remote host is read over SSH with a fixed check.
 
 ## Setup
 
@@ -68,14 +68,14 @@ CPU, memory, and network rates are sampled about every 5 seconds. History is kep
 
 ## Server list
 
-The demo monitors this machine only. Add a display name on the Add server page. The address must be this machine (`127.0.0.1`, `localhost`, `::1`, or the hostname). The file stores the name and `127.0.0.1`. Any other address is rejected. Removing an entry only edits `data/servers.json`.
+Add a server by name. Leave the host blank, or enter this machine (`127.0.0.1`, `localhost`, `::1`, or the hostname), and the file stores `127.0.0.1` with no SSH password. A hostname or IP is stored as entered, with its port (22 when blank), SSH username, and SSH password. The password stays in `data/servers.json` so the monitor can reconnect. It is not shown again on the page. Removing an entry only edits that file.
 
-Each entry links to the same local metrics.
+The home page keeps showing this machine. Open a server to read that host. A remote host is contacted with SSH and a fixed read-only script. The form has no command field, and a posted command is ignored.
 
-The same page lists every user and can add another one. `admin` is the built-in account from `ADMIN_PASSWORD_HASH`. Added accounts are stored in `data/users.json` as a username and a password hash, and they can sign in. The password itself is not stored.
+`admin` is the built-in account from `ADMIN_PASSWORD_HASH`. Extra sign-in accounts, if present in `data/users.json`, are a username and a password hash.
 
 ## What you can and cannot do
 
-You can sign in, sign out, read this machine's metrics, add or remove the local server entry, and add or remove extra user accounts.
+You can sign in, sign out, read this machine's metrics, and add or remove a local or remote server.
 
-You cannot change files, services, processes, or network settings on the host. The app does not open SSH, run a shell command from a request, or monitor another machine. Pages after sign-in are view-only except sign-in, sign-out, and the server list add/remove actions. Metric data requests check the session again and send anonymous users to the login page.
+You cannot change files, services, processes, or network settings through this app. Remote reads use the username and password you saved and a fixed script. A command typed into a request is not run. Pages after sign-in are view-only except sign-in, sign-out, and the server list add/remove actions. Metric data requests check the session again and send anonymous users to the login page.

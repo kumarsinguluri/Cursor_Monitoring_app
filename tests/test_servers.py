@@ -22,7 +22,9 @@ class ServerStoreTests(unittest.TestCase):
         saved = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(saved[0]["name"], "Local box")
         self.assertEqual(saved[0]["address"], "127.0.0.1")
-        self.assertEqual(set(saved[0]), {"id", "name", "address"})
+        self.assertEqual(saved[0]["port"], 22)
+        self.assertEqual(saved[0]["username"], "")
+        self.assertNotIn("password", saved[0])
 
     def test_hostname_is_accepted_and_not_stored(self):
         result = add_server(self.path, "local", "MyHost", "myhost")
@@ -32,11 +34,28 @@ class ServerStoreTests(unittest.TestCase):
         self.assertNotIn("MyHost", text)
         self.assertNotIn("myhost", text)
 
-    def test_reject_non_local_address(self):
-        result = add_server(self.path, "remote", "8.8.8.8", "myhost")
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["message"], "Only this machine is accepted.")
+    def test_remote_server_stores_ssh_details_not_a_command(self):
+        missing = add_server(self.path, "remote", "8.8.8.8", "myhost")
+        self.assertFalse(missing["ok"])
+        self.assertEqual(missing["message"], "Enter the SSH username.")
         self.assertFalse(self.path.exists())
+        result = add_server(
+            self.path,
+            "remote",
+            "8.8.8.8",
+            "myhost",
+            port="2222",
+            username="monitor",
+            password="secret-pass",
+        )
+        self.assertTrue(result["ok"])
+        self.assertNotIn("password", result["server"])
+        saved = json.loads(self.path.read_text(encoding="utf-8"))
+        self.assertEqual(saved[0]["address"], "8.8.8.8")
+        self.assertEqual(saved[0]["port"], 2222)
+        self.assertEqual(saved[0]["username"], "monitor")
+        self.assertEqual(saved[0]["password"], "secret-pass")
+        self.assertNotIn("command", saved[0])
 
     def test_remove_only_edits_the_json_file(self):
         added = add_server(self.path, "local", "", "myhost")
@@ -47,7 +66,7 @@ class ServerStoreTests(unittest.TestCase):
         self.assertEqual(notes.read_text(encoding="utf-8"), "keep")
         self.assertFalse(remove_server(self.path, added["server"]["id"]))
 
-    def test_remote_row_in_the_file_is_ignored(self):
+    def test_loaded_remote_row_drops_a_command(self):
         self.path.write_text(
             json.dumps(
                 [
@@ -55,13 +74,19 @@ class ServerStoreTests(unittest.TestCase):
                         "id": "a" * 32,
                         "name": "elsewhere",
                         "address": "8.8.8.8",
+                        "port": 22,
+                        "username": "monitor",
+                        "password": "secret-pass",
                         "command": "id",
                     }
                 ]
             ),
             encoding="utf-8",
         )
-        self.assertEqual(load_servers(self.path), [])
+        loaded = load_servers(self.path)
+        self.assertEqual(loaded[0]["address"], "8.8.8.8")
+        self.assertNotIn("password", loaded[0])
+        self.assertNotIn("command", loaded[0])
 
 
 class ServerPageTests(unittest.TestCase):
@@ -79,9 +104,9 @@ class ServerPageTests(unittest.TestCase):
     def test_add_reject_and_remove_from_the_page(self):
         rejected = self.client.post(
             "/servers/new",
-            data={"name": "nope", "address": "203.0.113.5"},
+            data={"name": "nope", "address": "bad host"},
         )
-        self.assertIn(b"Only this machine is accepted.", rejected.data)
+        self.assertIn(b"Enter a hostname or IP address.", rejected.data)
         self.assertFalse(os.path.exists(self.path))
 
         ignored = self.client.post(
@@ -92,6 +117,7 @@ class ServerPageTests(unittest.TestCase):
                 "host": "evil.example",
                 "port": "22",
                 "username": "root",
+                "password": "secret-pass",
                 "command": "rm -rf /",
             },
             follow_redirects=True,
@@ -100,12 +126,37 @@ class ServerPageTests(unittest.TestCase):
         saved = json.loads(Path(self.path).read_text(encoding="utf-8"))
         self.assertEqual(len(saved), 1)
         self.assertEqual(saved[0]["address"], "127.0.0.1")
-        self.assertEqual(set(saved[0]), {"id", "name", "address"})
+        self.assertEqual(saved[0]["username"], "")
+        self.assertNotIn("password", saved[0])
         text = Path(self.path).read_text(encoding="utf-8")
         self.assertNotIn("evil.example", text)
         self.assertNotIn("root", text)
+        self.assertNotIn("secret-pass", text)
         self.assertNotIn("rm -rf", text)
         self.assertIn(b"this machine", ignored.data)
+
+        remote = self.client.post(
+            "/servers/new",
+            data={
+                "name": "dns",
+                "address": "203.0.113.5",
+                "port": "2222",
+                "username": "monitor",
+                "password": "secret-pass",
+                "command": "rm -rf /",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(remote.status_code, 200)
+        saved = json.loads(Path(self.path).read_text(encoding="utf-8"))
+        self.assertEqual(saved[1]["address"], "203.0.113.5")
+        self.assertEqual(saved[1]["port"], 2222)
+        self.assertEqual(saved[1]["username"], "monitor")
+        self.assertEqual(saved[1]["password"], "secret-pass")
+        text = Path(self.path).read_text(encoding="utf-8")
+        self.assertNotIn("rm -rf", text)
+        self.assertNotIn(b"secret-pass", remote.data)
+        self.assertIn(b"monitor@203.0.113.5:2222", remote.data)
 
         detail = self.client.get(f"/servers/{saved[0]['id']}")
         self.assertEqual(detail.status_code, 200)
@@ -118,13 +169,14 @@ class ServerPageTests(unittest.TestCase):
         )
         saved = json.loads(Path(self.path).read_text(encoding="utf-8"))
         self.assertEqual(duplicate.status_code, 200)
-        self.assertEqual([row["name"] for row in saved], ["this machine", "second"])
-        self.assertEqual({row["address"] for row in saved}, {"127.0.0.1"})
+        self.assertEqual([row["name"] for row in saved], ["this machine", "dns", "second"])
+        self.assertEqual(saved[1]["address"], "203.0.113.5")
         self.assertIn(b"second", duplicate.data)
 
         self.client.post(f"/servers/{saved[0]['id']}/remove")
+        self.client.post(f"/servers/{saved[1]['id']}/remove")
         removed = self.client.post(
-            f"/servers/{saved[1]['id']}/remove",
+            f"/servers/{saved[2]['id']}/remove",
             follow_redirects=True,
         )
         self.assertEqual(json.loads(Path(self.path).read_text(encoding="utf-8")), [])

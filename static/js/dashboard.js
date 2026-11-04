@@ -8,7 +8,8 @@
   var timer = window.setInterval(refresh, ms);
 
   function refresh() {
-    window.fetch("/metrics/fragment", {
+    var url = root.getAttribute("data-url") || "/metrics/fragment";
+    window.fetch(url, {
       credentials: "same-origin",
       redirect: "manual",
       headers: { Accept: "text/html" }
