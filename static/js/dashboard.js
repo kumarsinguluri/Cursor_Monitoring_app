@@ -1,14 +1,22 @@
 (function () {
-  var root = document.getElementById("metrics");
-  if (!root) {
+  var blocks = document.querySelectorAll(".monitor-block");
+  if (!blocks.length) {
     return;
   }
-  var ms = Number(root.getAttribute("data-refresh")) || 5000;
+  var ms = Number(blocks[0].getAttribute("data-refresh")) || 5000;
   var noteText = "Updates every 5 seconds. History is kept in memory for at most 60 minutes.";
-  var timer = window.setInterval(refresh, ms);
+  var timer = window.setInterval(refreshAll, ms);
 
-  function refresh() {
-    var url = root.getAttribute("data-url") || "/metrics/fragment";
+  function refreshAll() {
+    Array.prototype.forEach.call(blocks, refreshOne);
+  }
+
+  function refreshOne(block) {
+    var slot = block.querySelector(".metrics-slot");
+    if (!slot) {
+      return;
+    }
+    var url = block.getAttribute("data-url") || "/metrics/fragment";
     window.fetch(url, {
       credentials: "same-origin",
       redirect: "manual",
@@ -44,13 +52,13 @@
         window.location.assign("/login");
         return;
       }
-      root.innerHTML = html;
-      var note = document.getElementById("refresh-note");
+      slot.innerHTML = html;
+      var note = block.querySelector(".refresh-note");
       if (note) {
         note.textContent = noteText;
       }
     }).catch(function () {
-      var note = document.getElementById("refresh-note");
+      var note = block.querySelector(".refresh-note");
       if (note) {
         note.textContent = "The latest refresh failed. Showing the last reading.";
       }

@@ -8,9 +8,11 @@ class SshCommandTests(unittest.TestCase):
     def test_argv_is_fixed_and_has_no_password_or_user_command(self):
         argv = ssh_argv("203.0.113.5", 2222, "monitor")
         self.assertEqual(argv[0], "ssh")
-        self.assertEqual(argv[-4:-1], ["203.0.113.5", "python3", "-c"])
-        self.assertIs(argv[-1], REMOTE_SCRIPT)
-        joined = " ".join(argv[:-1])
+        self.assertEqual(argv[-2], "203.0.113.5")
+        self.assertTrue(argv[-1].startswith("python3 -c "))
+        self.assertIn("base64.b64decode", argv[-1])
+        self.assertNotIn(REMOTE_SCRIPT, argv[-1])
+        joined = " ".join(argv)
         self.assertNotIn("secret-pass", joined)
         self.assertNotIn("rm -rf", joined)
         self.assertNotIn("shell=True", joined)
@@ -26,6 +28,16 @@ class SshCommandTests(unittest.TestCase):
 
         result = ssh_collect("203.0.113.5", 22, "monitor", "secret-pass", runner=runner)
         self.assertIsNone(result)
+
+    def test_stdout_json_is_the_reading(self):
+        body = json.dumps({"hostname": "remote-host"}).encode()
+
+        def runner(argv, **kwargs):
+            self.assertNotIn("secret-pass", " ".join(argv))
+            return _Result(0, b"noise\n" + body + b"\n", b"")
+
+        result = ssh_collect("203.0.113.5", 22, "monitor", "secret-pass", runner=runner)
+        self.assertEqual(result, {"hostname": "remote-host"})
 
 
 class RemoteSnapshotTests(unittest.TestCase):

@@ -1,5 +1,6 @@
 """Read a remote Linux host over SSH. The remote command is fixed."""
 
+import base64
 import json
 import os
 import subprocess
@@ -134,7 +135,16 @@ print(json.dumps({
 
 
 def ssh_argv(address, port, username):
-    """Build the SSH argument list. The password is not an argument."""
+    """Build the SSH argument list. The password is not an argument.
+
+    The script is one remote-shell argument. A raw ``python3 -c`` script is
+    split on newlines by the remote shell, so the script is sent as base64.
+    """
+    encoded = base64.b64encode(REMOTE_SCRIPT.encode()).decode()
+    command = (
+        "python3 -c 'import base64,sys; exec(base64.b64decode(sys.argv[1]))' "
+        + encoded
+    )
     return [
         "ssh",
         "-o",
@@ -150,9 +160,7 @@ def ssh_argv(address, port, username):
         "-l",
         username,
         address,
-        "python3",
-        "-c",
-        REMOTE_SCRIPT,
+        command,
     ]
 
 
@@ -183,6 +191,7 @@ def ssh_collect(address, port, username, password, runner=None):
                 timeout=12,
                 env=env,
                 check=False,
+                start_new_session=True,
             )
         except (OSError, subprocess.TimeoutExpired):
             return None
@@ -194,6 +203,22 @@ def ssh_collect(address, port, username, password, runner=None):
             os.unlink(handle.name)
         except OSError:
             pass
+
+
+def _parse_stdout(stdout):
+    if isinstance(stdout, bytes):
+        text = stdout.decode("utf-8", "replace")
+    else:
+        text = str(stdout)
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end < start or (end - start) > _STDOUT_LIMIT:
+        return None
+    try:
+        payload = json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
 
 
 def unreachable_snapshot():

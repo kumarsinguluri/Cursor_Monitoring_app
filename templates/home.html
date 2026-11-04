@@ -2,7 +2,7 @@
 {% block title %}Dashboard · Host Monitor{% endblock %}
 {% block main %}
   <h1>Dashboard</h1>
-  <p class="lede">This machine · read only</p>
+  <p class="lede">This machine, and each server you add · read only</p>
 
   <section class="panel" aria-label="Servers">
     <div class="panel-head">
@@ -19,6 +19,7 @@
       <li>
         <a href="{{ url_for('server_detail', server_id=server.id) }}">{{ server.name }}</a>
         <span class="muted">{% if server.username %}{{ server.username }}@{% endif %}{{ server.address }}{% if server.port != 22 %}:{{ server.port }}{% endif %}</span>
+        <span class="muted">{% for item in monitored if item.server.id == server.id %}{{ item.status }}{% endfor %}</span>
         <form method="post" action="{{ url_for('server_remove', server_id=server.id) }}">
           <button class="ghost" type="submit">Remove</button>
         </form>
@@ -28,10 +29,26 @@
     {% endif %}
   </section>
 
-  <p class="hint" id="refresh-note">Updates every 5 seconds. History is kept in memory for at most 60 minutes.</p>
-  <div id="metrics" data-refresh="5000" data-url="{{ url_for('metrics_fragment') }}">
-    {% include "_metrics.html" %}
-  </div>
+  <section class="monitor-block" aria-label="This machine" data-refresh="5000" data-url="{{ url_for('metrics_fragment') }}">
+    <h2 class="section-title">This machine</h2>
+    <p class="hint refresh-note">Updates every 5 seconds. History is kept in memory for at most 60 minutes.</p>
+    <div class="metrics-slot">
+      {% include "_metrics.html" %}
+    </div>
+  </section>
+
+  {% for item in monitored if not item.local %}
+  <section class="monitor-block" aria-label="{{ item.server.name }}" data-refresh="5000" data-url="{{ url_for('server_metrics', server_id=item.server.id) }}">
+    <h2 class="section-title">{{ item.server.name }}</h2>
+    <p class="hint">{% if item.server.username %}{{ item.server.username }}@{% endif %}{{ item.server.address }}{% if item.server.port != 22 %}:{{ item.server.port }}{% endif %}</p>
+    <p class="hint refresh-note">Updates every 5 seconds. History is kept in memory for at most 60 minutes.</p>
+    <div class="metrics-slot">
+      {% with metrics=item.metrics %}
+        {% include "_metrics.html" %}
+      {% endwith %}
+    </div>
+  </section>
+  {% endfor %}
   <noscript><p class="hint">Automatic refresh is off. Reload the page for new readings.</p></noscript>
 {% endblock %}
 {% block scripts %}

@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from app.remote import RemoteMonitor
 from app.servers import add_server, load_servers, remove_server
 from tests.support import login, make_app
 
@@ -135,6 +136,7 @@ class ServerPageTests(unittest.TestCase):
         self.assertNotIn("rm -rf", text)
         self.assertIn(b"this machine", ignored.data)
 
+        self.app.remote = RemoteMonitor(collect=_sample_payload, interval=0)
         remote = self.client.post(
             "/servers/new",
             data={
@@ -157,6 +159,13 @@ class ServerPageTests(unittest.TestCase):
         self.assertNotIn("rm -rf", text)
         self.assertNotIn(b"secret-pass", remote.data)
         self.assertIn(b"monitor@203.0.113.5:2222", remote.data)
+        self.assertIn(b"This machine", remote.data)
+        self.assertIn(b"remote-host", remote.data)
+
+        remote_detail = self.client.get(f"/servers/{saved[1]['id']}")
+        self.assertEqual(remote_detail.status_code, 200)
+        self.assertIn(b"remote-host", remote_detail.data)
+        self.assertNotIn(b"secret-pass", remote_detail.data)
 
         detail = self.client.get(f"/servers/{saved[0]['id']}")
         self.assertEqual(detail.status_code, 200)
@@ -181,6 +190,22 @@ class ServerPageTests(unittest.TestCase):
         )
         self.assertEqual(json.loads(Path(self.path).read_text(encoding="utf-8")), [])
         self.assertIn(b"No servers yet", removed.data)
+
+
+def _sample_payload(*_args):
+    return {
+        "hostname": "remote-host",
+        "uptime": "90 0\n",
+        "load": "0.10 0.20 0.30 1/1 1\n",
+        "cpu": "cpu  0 0 0 100 0 0 0 0\n",
+        "mem": "MemTotal: 2048 kB\nMemAvailable: 1024 kB\n",
+        "net": "  lo: 1000 0 0 0 0 0 0 0 400 0 0 0 0 0 0 0\n",
+        "disks": [],
+        "tcp": "",
+        "tcp6": "",
+        "tcp_denied": False,
+        "processes": [],
+    }
 
 
 if __name__ == "__main__":

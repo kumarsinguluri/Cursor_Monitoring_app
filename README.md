@@ -70,7 +70,7 @@ CPU, memory, and network rates are sampled about every 5 seconds. History is kep
 
 Add a server by name. Leave the host blank, or enter this machine (`127.0.0.1`, `localhost`, `::1`, or the hostname), and the file stores `127.0.0.1` with no SSH password. A hostname or IP is stored as entered, with its port (22 when blank), SSH username, and SSH password. The password stays in `data/servers.json` so the monitor can reconnect. It is not shown again on the page. Removing an entry only edits that file.
 
-The home page keeps showing this machine. Open a server to read that host. A remote host is contacted with SSH and a fixed read-only script. The form has no command field, and a posted command is ignored.
+The home page shows this machine and a live reading for every remote server you saved. Open a server for that same reading on its own page. A remote host is contacted with SSH and a fixed read-only script. The form has no command field, and a posted command is ignored.
 
 `admin` is the built-in account from `ADMIN_PASSWORD_HASH`. Extra sign-in accounts, if present in `data/users.json`, are a username and a password hash.
 

@@ -108,6 +108,10 @@ h2 {
   font-size: 1.15rem;
 }
 
+.monitor-block {
+  margin-top: 8px;
+}
+
 .server-list .who {
   font-weight: 650;
 }

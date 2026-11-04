@@ -6,10 +6,12 @@
   <form class="inline-form" method="post" action="{{ url_for('server_remove', server_id=server.id) }}">
     <button class="ghost" type="submit">Remove</button>
   </form>
-  <p class="hint" id="refresh-note">Updates every 5 seconds. History is kept in memory for at most 60 minutes.</p>
-  <div id="metrics" data-refresh="5000" data-url="{{ url_for('server_metrics', server_id=server.id) }}">
-    {% include "_metrics.html" %}
-  </div>
+  <section class="monitor-block" aria-label="{{ server.name }}" data-refresh="5000" data-url="{{ url_for('server_metrics', server_id=server.id) }}">
+    <p class="hint refresh-note">Updates every 5 seconds. History is kept in memory for at most 60 minutes.</p>
+    <div class="metrics-slot">
+      {% include "_metrics.html" %}
+    </div>
+  </section>
   <noscript><p class="hint">Automatic refresh is off. Reload the page for new readings.</p></noscript>
 {% endblock %}
 {% block scripts %}

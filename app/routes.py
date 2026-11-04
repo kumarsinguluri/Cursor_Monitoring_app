@@ -41,7 +41,8 @@ def register_routes(app):
             "home.html",
             servers=servers,
             servers_error=error,
-            metrics=current_app.monitor.snapshot(),
+            monitored=_monitored(servers) if error is None else [],
+            metrics=_metrics_for(None),
         )
 
     @app.route("/login", methods=["GET", "POST"])
@@ -186,6 +187,33 @@ def _metrics_for(server):
         snapshot = dict(snapshot)
         snapshot["error"] = None
     return snapshot
+
+
+def _monitored(servers):
+    """Pair each saved server with a live reading. Local entries share this machine."""
+    hostname = _hostname()
+    rows = []
+    for server in servers:
+        full = _find_server(server["id"])
+        if full is None:
+            continue
+        local = is_local_address(full.get("address"), hostname)
+        metrics = None if local else _metrics_for(full)
+        if local:
+            status = "This machine"
+        elif metrics.get("error"):
+            status = metrics["error"]
+        else:
+            status = "CPU " + str(metrics["cpu"].get("percent_label") or "—")
+        rows.append(
+            {
+                "server": _public_server(full),
+                "local": local,
+                "metrics": metrics,
+                "status": status,
+            }
+        )
+    return rows
 
 
 def _public_server(server):
