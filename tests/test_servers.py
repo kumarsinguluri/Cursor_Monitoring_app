@@ -114,12 +114,17 @@ class ServerPageTests(unittest.TestCase):
         duplicate = self.client.post(
             "/servers/new",
             data={"name": "second", "address": "127.0.0.1"},
+            follow_redirects=True,
         )
-        self.assertIn(b"one local server", duplicate.data)
-        self.assertEqual(len(json.loads(Path(self.path).read_text(encoding="utf-8"))), 1)
+        saved = json.loads(Path(self.path).read_text(encoding="utf-8"))
+        self.assertEqual(duplicate.status_code, 200)
+        self.assertEqual([row["name"] for row in saved], ["this machine", "second"])
+        self.assertEqual({row["address"] for row in saved}, {"127.0.0.1"})
+        self.assertIn(b"second", duplicate.data)
 
+        self.client.post(f"/servers/{saved[0]['id']}/remove")
         removed = self.client.post(
-            f"/servers/{saved[0]['id']}/remove",
+            f"/servers/{saved[1]['id']}/remove",
             follow_redirects=True,
         )
         self.assertEqual(json.loads(Path(self.path).read_text(encoding="utf-8")), [])

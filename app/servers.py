@@ -45,12 +45,6 @@ def add_server(path, name, address, hostname):
             current = load_servers(path)
         except ServerStoreError:
             return {"ok": False, "message": "Server list unavailable.", "server": None}
-        if current:
-            return {
-                "ok": False,
-                "message": "This demo monitors one local server.",
-                "server": None,
-            }
         cleaned = clean_display_name(name)
         if cleaned is None:
             return {"ok": False, "message": "Enter a display name.", "server": None}

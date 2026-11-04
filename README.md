@@ -70,10 +70,12 @@ CPU, memory, and network rates are sampled about every 5 seconds. History is kep
 
 The demo monitors this machine only. Add a display name on the Add server page. The address must be this machine (`127.0.0.1`, `localhost`, `::1`, or the hostname). The file stores the name and `127.0.0.1`. Any other address is rejected. Removing an entry only edits `data/servers.json`.
 
-Each entry links to the same local metrics. The list holds one server.
+Each entry links to the same local metrics.
+
+The same page lists every user and can add another one. `admin` is the built-in account from `ADMIN_PASSWORD_HASH`. Added accounts are stored in `data/users.json` as a username and a password hash, and they can sign in. The password itself is not stored.
 
 ## What you can and cannot do
 
-You can sign in, sign out, read this machine's metrics, and add or remove the local server entry.
+You can sign in, sign out, read this machine's metrics, add or remove the local server entry, and add or remove extra user accounts.
 
 You cannot change files, services, processes, or network settings on the host. The app does not open SSH, run a shell command from a request, or monitor another machine. Pages after sign-in are view-only except sign-in, sign-out, and the server list add/remove actions. Metric data requests check the session again and send anonymous users to the login page.

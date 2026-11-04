@@ -6,7 +6,7 @@ from flask import Flask
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def create_app(servers_path=None, start_collector=True, load_env_file=True):
+def create_app(servers_path=None, users_path=None, start_collector=True, load_env_file=True):
     if load_env_file:
         _load_env_file()
     secret = os.environ.get("SECRET_KEY", "").strip()
@@ -26,6 +26,7 @@ def create_app(servers_path=None, start_collector=True, load_env_file=True):
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
     app.config["SERVERS_PATH"] = str(servers_path or (ROOT / "data" / "servers.json"))
+    app.config["USERS_PATH"] = str(users_path or (ROOT / "data" / "users.json"))
 
     from app.charts import cpu_chart, memory_chart, network_chart
     from app.collect import Monitor

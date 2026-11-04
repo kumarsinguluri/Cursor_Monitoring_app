@@ -1,4 +1,4 @@
-"""Pages. Metrics are view-only. The server list is the only write path."""
+"""Pages. Metrics are view-only. Writes are the server list and the user list."""
 
 import os
 import socket
@@ -7,6 +7,13 @@ from flask import abort, current_app, jsonify, redirect, render_template, reques
 
 from app.auth import verify_login
 from app.servers import ServerStoreError, add_server, load_servers, remove_server
+from app.users import (
+    UserStoreError,
+    add_user,
+    password_matches,
+    public_usernames,
+    remove_user,
+)
 
 _OPEN = {"login", "static"}
 
@@ -16,8 +23,9 @@ def register_routes(app):
     def require_login():
         if request.endpoint in _OPEN:
             return None
-        if session.get("user") == "admin":
+        if _signed_in():
             return None
+        session.clear()
         return redirect(url_for("login"))
 
     @app.after_request
@@ -37,8 +45,10 @@ def register_routes(app):
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
-        if session.get("user") == "admin":
+        if _signed_in():
             return redirect(url_for("home"))
+        if session.get("user"):
+            session.clear()
         error = None
         if request.method == "POST":
             username = request.form.get("username", "")
@@ -47,6 +57,10 @@ def register_routes(app):
             if verify_login(username, password, password_hash):
                 session.clear()
                 session["user"] = "admin"
+                return redirect(url_for("home"))
+            if password_matches(_users_path(), username, password):
+                session.clear()
+                session["user"] = username
                 return redirect(url_for("home"))
             error = "Invalid username or password."
         return render_template("login.html", error=error)
@@ -62,11 +76,6 @@ def register_routes(app):
         name = ""
         address = ""
         error = None
-        try:
-            locked = bool(load_servers(_path()))
-        except ServerStoreError:
-            locked = False
-            error = "Server list unavailable."
         if request.method == "POST":
             # host, port, username, and command are ignored so this cannot open SSH.
             name = request.form.get("name", "")
@@ -74,19 +83,35 @@ def register_routes(app):
             result = add_server(_path(), name, address, hostname)
             if result["ok"]:
                 return redirect(url_for("home"))
-            if result["message"] == "This demo monitors one local server.":
-                locked = True
-                error = None
-            else:
-                error = result["message"]
-        return render_template(
-            "server_form.html",
-            error=error,
-            locked=locked,
-            name=name,
-            address=address,
-            hostname=hostname or "this machine",
+            error = result["message"]
+        return _render_server_form(hostname, name, address, error)
+
+    @app.post("/users")
+    def user_add():
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        result = add_user(_users_path(), username, password)
+        if result["ok"]:
+            return redirect(url_for("server_new"))
+        return _render_server_form(
+            _hostname(),
+            "",
+            "",
+            None,
+            user_error=result["message"],
+            user_name=username if isinstance(username, str) else "",
         )
+
+    @app.post("/users/<username>/remove")
+    def user_remove(username):
+        try:
+            remove_user(_users_path(), username)
+        except UserStoreError:
+            pass
+        if session.get("user") == username:
+            session.clear()
+            return redirect(url_for("login"))
+        return redirect(url_for("server_new"))
 
     @app.post("/servers/<server_id>/remove")
     def server_remove(server_id):
@@ -132,8 +157,46 @@ def register_routes(app):
         return render_template("error.html", message="Something went wrong."), 500
 
 
+def _signed_in():
+    username = session.get("user")
+    if username == "admin":
+        return True
+    if not isinstance(username, str) or not username:
+        return False
+    try:
+        return username in public_usernames(_users_path())
+    except UserStoreError:
+        return False
+
+
+def _render_server_form(hostname, name, address, error, user_error=None, user_name=""):
+    try:
+        names = public_usernames(_users_path())
+        users_error = None
+    except UserStoreError:
+        names = []
+        users_error = "User list unavailable."
+    users = [{"username": "admin", "builtin": True}]
+    users.extend({"username": item, "builtin": False} for item in names)
+    return render_template(
+        "server_form.html",
+        error=error,
+        name=name,
+        address=address,
+        hostname=hostname or "this machine",
+        users=users,
+        users_error=users_error,
+        user_error=user_error,
+        user_name=user_name,
+    )
+
+
 def _path():
     return current_app.config["SERVERS_PATH"]
+
+
+def _users_path():
+    return current_app.config["USERS_PATH"]
 
 
 def _servers():
